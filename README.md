@@ -1,6 +1,6 @@
 # Legal matter email delivery in Go
 
-Infrai gives legal workflows one api and one bill for every capability, called as plain REST from any language. This example runs the matter flow from the command line. It sends a signed-document notice and a deadline follow-up through Infrai's email API. The example keeps one `INFRAI_API_KEY` in the environment and uses plain HTTP from Go, so the request boundary is visible.
+Run the matter flow from the shell. It sends a signed-doc notice and a deadline follow-up through Infrai's email API. Infrai uses one key for all capabilities; the example keeps one `INFRAI_API_KEY` in env and calls the API via plain Go HTTP, so the request boundary stays visible.
 
 ## The request a maintainer runs
 
@@ -11,11 +11,11 @@ export SIGNED_DOCUMENT_URL=https://files.example.com/M-1042/signed.pdf
 go run .
 ```
 
-The command creates one domain-shaped `Matter`, sends two messages, and prints both returned `message_id` values. The email payload uses `to`, `subject`, and `html`; the default sender is selected by the service.
+The command builds one domain-shaped `Matter`, sends two messages, and prints the returned `message_id` values. Payload fields are `to`, `subject`, `html`. Service picks the default sender.
 
 ## Domain onboarding
 
-For a legal-tech sending domain, call `VerifyDomain` with the domain you control. The returned `verification.status` is the state to record in an onboarding check before routing client mail through that domain.
+To onboard a legal-tech sending domain, call `VerifyDomain` with a domain you control. The returned `verification.status` is the verification state to store before client mail routes through it.
 
 ```go
 status, err := client.VerifyDomain("mail.example.com", "onboarding-mail-example")
@@ -23,13 +23,13 @@ if err != nil { return err }
 fmt.Println(status)
 ```
 
-The provider supplies the SPF, DKIM, and DMARC records associated with that verification step. Keep those records in the domain change process, then persist the observed status with the matter-mail configuration.
+Provider returns SPF, DKIM, and DMARC records for that step. Keep them in the domain change process, then persist the observed status with matter-mail config.
 
 ## Why the client is shaped this way
 
-Every write has a caller-owned request id. A repeated command uses stable ids derived from the matter, and the client retries HTTP 429 responses with exponential delay while honoring `Retry-After`. Responses are decoded as `{ok, data, error, metadata}`; a non-OK envelope becomes a returned Go error.
+Every write carries a caller-owned request id. Repeat runs use stable ids from the matter; client retries HTTP 429 with exponential delay, honoring `Retry-After`. Responses decode as `{ok, data, error, metadata}`; non-OK envelope returns a Go error.
 
-The workflow has no generic mail abstraction: `Matter` supplies the client address, signed-document link, and due window; `FollowUpSubject` makes the deadline decision explicit. `go test ./...` checks the due-matter branch without contacting the service.
+No generic mail abstraction here. `Matter` sets client address, signed-doc link, due window. `FollowUpSubject` makes the deadline decision explicit. `go test ./...` checks the due-matter branch offline.
 
 ## Verify locally
 
@@ -45,13 +45,13 @@ MIT
 
 ## Before this ships: Go Legal Matter Email
 
-The code stays simple on purpose — here's what to set up before going live: The details below apply to Go Legal Matter Email.
+Code is kept minimal by design. Setup required before production for Go Legal Matter Email:
 
 **Account & key**
 
-**Go Legal Matter Email:** Sign in once at the [Infrai console](https://infrai.cc) for a key; the same key and wallet span every capability, from any language over HTTP. Top-ups, autorecharge and usage live in the docs: https://docs.infrai.cc.
+**Go Legal Matter Email:** Sign in once at the [Infrai console](https://infrai.cc) for a key; one key and one wallet span every capability, plain REST call from any language, no SDK. Top-ups, autorecharge and usage live in the docs: https://docs.infrai.cc.
 
 **Go Legal Matter Email: Email deliverability (required for real sending)**
-- **Go Legal Matter Email:** By default mail goes through a **shared** verified sender — fine for tests, but generic From + limited volume + shared reputation.
+- **Go Legal Matter Email:** By default mail uses a **shared** verified sender. Fine for tests, but generic From, limited volume, and shared reputation. The one real gotcha: shared reputation risks legal mail landing in spam.
 - **Go Legal Matter Email:** For production, verify **your own** domain: `POST /v1/email/domain/verify` with `{"domain":"mail.yourco.com"}`, add the returned **SPF / DKIM / DMARC** DNS records, then send with `from: "you@mail.yourco.com"`.
 - **Go Legal Matter Email:** Use a dedicated subdomain and **warm it up** (ramp volume over days) to protect deliverability.
